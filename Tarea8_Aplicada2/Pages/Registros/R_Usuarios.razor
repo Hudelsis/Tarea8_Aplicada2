@@ -1,0 +1,237 @@
+﻿@page "/Usuarios"
+@page "/Usuarios/{UsuarioId:int}"
+
+@using Models
+@using BLL
+@using System.Web;
+@using System.Security.Claims;
+
+@inject IToastService toast
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
+
+<EditForm Model="Usuario" OnValidSubmit="Guardar">
+    <DataAnnotationsValidator />
+    <div class="card">
+        <div class="card-header">
+
+            <h3>R_Usuarios</h3>
+        </div>
+        <div class="card-body">
+            <form>
+
+                @*UsuarioId*@
+                <div class="form-row align-items-center">
+                    <div class="col">
+                        <div class="form-group">
+                            <label>UsuarioId</label>
+                            <div class="input-group">
+                                <InputNumber readonly="@Activacion" @bind-Value="Usuario.UsuarioId" class="form-control col-4" />
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-primary input-group-text" @onclick="Buscar"><i class="oi oi-magnifying-glass" />Buscar</button>
+                                </div>
+                            </div>
+                            <ValidationMessage For="@(() => Usuario.UsuarioId)" />
+                        </div>
+                    </div>
+                </div>
+
+                @*Fecha*@
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <InputDate @bind-Value="Usuario.Fecha" class="form-control" />
+                    <ValidationMessage For="@(() => Usuario.Fecha)" />
+                </div>
+
+                @*Nombres*@
+                <div class="form-group">
+                    <label>Nombres</label>
+                    <InputText @bind-Value="Usuario.Nombres" class="form-control" />
+                    <ValidationMessage For="@(() => Usuario.Nombres)" />
+                </div>
+
+                @*Nombre Usuario*@
+                <div class="form-group">
+                    <label>Nombre Usuario</label>
+                    <InputText @bind-Value="Usuario.NombreUsuario" class="form-control" />
+                    <ValidationMessage For="@(() => Usuario.NombreUsuario)" />
+                </div>
+
+                @*Clave*@
+                <div class="form-group">
+                    <label>Clave</label>
+                    <InputText @bind-Value="Usuario.Clave" class="form-control" />
+                    <ValidationMessage For="@(() => Usuario.Clave)" />
+                </div>
+
+                @*Email*@
+                <div class="form-group">
+                    <label>Email</label>
+                    <div class="row">
+                        <div class="col">
+                            <InputText @bind-Value="Usuario.Email" class="form-control" />
+                            <ValidationMessage For="@(() => Usuario.Email)" />
+                        </div>
+                        <div class="col-2">
+                            <div class="row">
+                                <label>Fecha Creación</label>
+                            </div>
+                            <div class="row">
+                                <label>@Usuario.FechaCreacion.ToString("dd/MM/yyyy")</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @*Creado por*@
+                <div class="form-group">
+                    <label>Creado Por</label>
+                    <div class="row">
+                        <div class="col">
+                            <label>@nombreUsuarioCreacion</label>
+                        </div>
+                        <div class="col-2">
+                            <div class="row">
+                                <label>Fecha Modificación</label>
+                            </div>
+                            <div class="row">
+                                <label>@Usuario.FechaModificacion.ToString("dd/MM/yyyy")</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+        <div class="card-footer">
+            <div class="form-group text-center" display: inline-block>
+                <button type="button" class="btn btn-lg btn-primary " @onclick="Nuevo"> Nuevo</button>
+                <button type="submit" class="btn btn-lg btn-success "> Guardar</button>
+                <button type="button" class="btn btn-lg btn-danger " @onclick="Eliminar"> Eliminar</button>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int UsuarioId { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authState { get; set; }
+
+    private Usuarios Usuario = new Usuarios();
+
+    private string nombreUsuarioCreacion { get; set; } = "";
+    private string usuarioIdCreacion { get; set; } = "";
+
+    private bool Activacion { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Nuevo();
+        BuscarParametro();
+    }
+
+    public void Nuevo()
+    {
+        Usuario = new Usuarios();
+
+      //  ReiniciarUsuarioCreacion();
+
+        Activacion = false;
+    }
+
+   
+
+    private void BuscarParametro()
+    {
+        if (UsuarioId > 0)
+        {
+            var encontrado = UsuariosBLL.Buscar(UsuarioId);
+
+            if (encontrado != null)
+            {
+                this.Usuario = encontrado;
+                AsignarUsuarioCreacion();
+                Activacion = true;
+            }
+            else
+                toast.ShowWarning("No encontrado");
+        }
+    }
+
+    public void Buscar()
+    {
+        if (Usuario.UsuarioId > 0)
+        {
+            var encontrado = UsuariosBLL.Buscar(Usuario.UsuarioId);
+
+            if (encontrado != null)
+            {
+                this.Usuario = encontrado;
+                AsignarUsuarioCreacion();
+                Activacion = true;
+            }
+            else
+                toast.ShowWarning("No encontrado");
+        }
+    }
+
+    private void AsignarUsuarioCreacion()
+    {
+        Usuarios usuarioCreacion = UsuariosBLL.Buscar(Usuario.UsuarioIdCreacion);
+
+        nombreUsuarioCreacion = usuarioCreacion.NombreUsuario;
+        usuarioIdCreacion = Usuario.UsuarioIdCreacion.ToString();
+    }
+
+    public void Guardar()
+    {
+        bool guardo;
+
+        if (UsuariosBLL.ExisteUsuario(Usuario.NombreUsuario, Usuario.Clave) && Usuario.UsuarioId == 0)
+        {
+            toast.ShowInfo("Usuario existente");
+            return;
+        }
+
+        Usuario.UsuarioIdCreacion = Convert.ToInt32(usuarioIdCreacion);
+        Usuario.FechaModificacion = DateTime.Now;
+
+        guardo = UsuariosBLL.Guardar(Usuario);
+
+        if (guardo)
+        {
+            Nuevo();
+            toast.ShowSuccess("Guardado correctamente");
+        }
+        else
+            toast.ShowError("No fue posible guardar. Talvez intento modificar un id inexistente.");
+    }
+
+    public async Task Eliminar()
+    {
+        if (await JS.ConfirmDelete("Confirmar", "¿Esta seguro que desea eliminar este usuario?", "question"))
+        {
+            bool elimino;
+
+            if (Usuario.UsuarioId == Convert.ToInt32(usuarioIdCreacion))
+            {
+                toast.ShowInfo("No se puede eliminar a si mismo");
+                return;
+            }
+
+            elimino = UsuariosBLL.Eliminar(Usuario.UsuarioId);
+
+            if (elimino)
+            {
+                Nuevo();
+                toast.ShowSuccess("Eliminado correctamente");
+            }
+            else
+                toast.ShowError("No fue posible eliminar");
+        }
+    }
+
+}
